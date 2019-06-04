@@ -27,7 +27,6 @@ public class clsLog
     }
 }
 
-
 public class clsLogining
 /* Определяет процедуру записи логов в базу
  * 
