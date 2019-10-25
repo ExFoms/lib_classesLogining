@@ -2,6 +2,7 @@
 using System.Data;
 using System.Data.SqlClient;
 
+public delegate void Metod_Log(clsLog log);
 public class clsLog
 /* Структура лога события 
  */
@@ -14,6 +15,7 @@ public class clsLog
     public int id_task;
     public DateTime date_start;
     public DateTime date_finish;
+    
     public clsLog(DateTime time_, int danger_, string name_, int id_foms_region_, int id_task_, DateTime date_start_, DateTime date_finish_, string comment_)
     {
         time = time_;
@@ -37,11 +39,24 @@ public class clsLogining
     public string queryUpdate;
     public SqlConnection server_connection;
     public SqlCommand server_command;
-    public clsLogining(string connection)
+    public Metod_Log metod_log;
+    public string adminMail;
+    private string MailServerIp;
+    private string gatewayMail;
+    private string gatewayPassword;
+    public bool adminInform = false;
+    public clsLogining(Metod_Log metod_log_, string connection, bool adminInform_ = false, string adminMail_= null/*"ex.foms@gmail.com"*/, string MailServerIp_ = null/*"192.168.1.2"*/, string gatewayMail_ = null/*"AOFOMS Gateware server-shrk@aofoms.tsl.ru"*/, string gatewayPassword_ = null)
     {
+        metod_log = metod_log_;
+        adminInform = adminInform_;
+        adminMail = adminMail_;
+        MailServerIp = MailServerIp_;
+        gatewayMail = gatewayMail_;
+        gatewayPassword = gatewayPassword_;
+
         server_connection_string = connection;
         server_connection = new SqlConnection(server_connection_string);
-        server_command = new SqlCommand("insert into LOG (DANGER, DATE, NAME, ID_FOMS_REGION, ID_TASK, DATE_START, DATE_FINISH, COMMENT) values (@DANGER, @DATE, @NAME, @ID_FOMS_REGION, @ID_TASK, @DATE_START, @DATE_FINISH, @COMMENT)");
+        server_command = new SqlCommand("insert into log (DANGER, DATE, NAME, ID_FOMS_REGION, ID_TASK, DATE_START, DATE_FINISH, COMMENT) values (@DANGER, @DATE, @NAME, @ID_FOMS_REGION, @ID_TASK, @DATE_START, @DATE_FINISH, @COMMENT)");
         server_command.Connection = server_connection;
         server_command.Parameters.Add("@DANGER", SqlDbType.Int);
         server_command.Parameters.Add("@DATE", SqlDbType.DateTime);
@@ -60,8 +75,9 @@ public class clsLogining
             server_command.Connection.Open();
             status = true;
         }
-        catch
+        catch(Exception e)
         {
+            metod_log(new clsLog(DateTime.Now, 1, "shedule", 0, 0, DateTime.Now, DateTime.Now, "запись в лог - " + e.Message));
             status = false;
         }
         return status;
@@ -81,17 +97,16 @@ public class clsLogining
         server_command.Parameters["@DATE_FINISH"].Value = log.date_finish;
         server_command.Parameters["@COMMENT"].Value = log.comment;
 
-        if (log.danger < 1)
+        if (log.danger < 1 && adminInform)
         {
             clsLibrary.SendMail(
-                            "192.168.1.2",
-                            "AOFOMS Gateware server-shrk@aofoms.tsl.ru",
-                            "A3z4y5",
-                            "sa.gate.aofoms@yandex.ru",
+                            MailServerIp, //"192.168.1.2",
+                            gatewayMail, //"AOFOMS Gateware server-shrk@aofoms.tsl.ru",
+                            gatewayPassword,// "A3z4y5",
+                            adminMail, //"sa.gate.aofoms@yandex.ru",
                             "Внимание!",
                             log.name + "|" + log.comment);
         }
-
         bool status;
         try
         {
